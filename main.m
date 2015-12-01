@@ -40,7 +40,7 @@ for ii=1:size(x,2)
     isGrangerCausal(ii) = F > c_v;
 end
 isGrangerCausal
-%% pwc industrial % change VC deals over financial mortgage crisis Q1 2006 - Q1 2013
+%% pwc industrial % change VC deals over subprime mortgage crisis Q1 2006 - Q1 2013
 % does not work well for software
 % used software for the 1998-2004 analysis because of dotcom boom
 % use industrial for 2006-2013 because of subprime mortgage crisis
@@ -72,7 +72,7 @@ datetick('x', 'yyyy QQ');
 legend('regression', 'actual');
 ylabel('% change VC industrial company deals');
 xlabel('quarters');
-title('regression for % change VC industrial deals during dotcom era');
+title('regression for % change VC industrial deals during subprime mortgage crisis');
 
 % granger causality test
 x = [nIndustrial, nComputer, nBank, nTelecomm];
