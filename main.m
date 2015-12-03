@@ -134,7 +134,7 @@ end
 
 rsqThreshold = 0.5;
 pctgoodThreshold = 0.8;
-varianceThreshold = 1.2;
+varianceThreshold = 0.02;
 dirName = 'Data/';
 graphDirName = 'Graphs/';
 nasdaqFiles = dir(fullfile(dirName, 'nasdaq*'));
@@ -198,6 +198,9 @@ for year=[3 4 5]
             seriesName = strrep(strrep(pwcNames{ii}, '_', '\_'), '.csv', '');
             seriesSaveName = strrep(seriesName, '\_', '-');
             actualWeights = weights(:,2:end);
+            mins = repmat(min(actualWeights),size(actualWeights,1),1);
+            actualWeights = actualWeights-mins;
+            actualWeights = actualWeights./(repmat(max(actualWeights),size(actualWeights,1),1)-mins);
             lowVarianceInd = [];
             for kk=1:size(actualWeights,2)
                 if (var(actualWeights(:,kk))) < varianceThreshold
@@ -210,17 +213,17 @@ for year=[3 4 5]
                 legend(featureNames(lowVarianceInd), 'Location', 'eastoutside');
                 title(strcat(seriesName, {' '}, sprintf('%d year window, stable weights with variance of < %f', year, varianceThreshold)));
                 xlabel('window iterations');
-                ylabel('weight values');
-                saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-useful-weights', year), '.png'));
+                ylabel('normalized weight values');
+                saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-useful-weights-normalized', year), '.png'));
                 saveas(fig, saveName);
             end
             fig = figure;
             plot(1:numiter,actualWeights);
             legend(featureNames, 'Location', 'eastoutside')
             title(strcat(seriesName, {' '}, sprintf('%d year window, lag 1 quarter', year)));
-            ylabel('value of weights for each variable regression');
+            ylabel('value of normalized weights for each variable regression');
             xlabel('iterations');
-            saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-weights', year), '.png'));
+            saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-weights-normalized', year), '.png'));
             saveas(fig, saveName);
         end
     end
