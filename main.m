@@ -118,7 +118,23 @@ for ii=1:length(fnames)
     xlabel('quarters');
 end
 
-%% rolling window
+%% rolling window stuff
+% runs rolling window analysis over window sizes of {12, 16, 20} quarters
+% (3, 4, or 5 year periods)
+% the weights for a given analysis are saved if the pctgoodThreshold (which
+% is defined as the percent of windows whose regression R-squared values
+% exceed rsqThreshold)
+% graphs of weights whose variance across all iterations are less than
+% varianceThreshold are also saved
+% all graphs are saved in the Graphs directory
+% the script is run with the values:
+%         rsqThreshold = 0.5;
+%         pctgoodThreshold = 0.8;
+%         varianceThreshold = 1.2;
+
+rsqThreshold = 0.5;
+pctgoodThreshold = 0.8;
+varianceThreshold = 1.2;
 dirName = 'Data/';
 graphDirName = 'Graphs/';
 nasdaqFiles = dir(fullfile(dirName, 'nasdaq*'));
@@ -177,9 +193,6 @@ for year=[3 4 5]
         pwcNames{ii}
         'rsqs values'
         rsqs'
-        rsqThreshold = 0.5;
-        pctgoodThreshold = 0.8;
-        varianceThreshold = 1.2;
         pctgood = length(find(rsqs > rsqThreshold))/numiter
         if pctgood > pctgoodThreshold    % overall 80% of all window regression must have rsq > 0.5
             seriesName = strrep(strrep(pwcNames{ii}, '_', '\_'), '.csv', '');
@@ -212,4 +225,3 @@ for year=[3 4 5]
         end
     end
 end
-% good = 1,2,6,8 PWC_Biotech.csv, PWC_Energy.csv, PWC_Industrial.csv, PWC_Software.csv
