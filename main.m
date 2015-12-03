@@ -6,14 +6,25 @@ pwcStuff = load_pwc('Data/PWC_Software.csv');
 
 % Q1 1998 - Q2 2004
 support = 12:35;
-onez = ones(size(pwcStuff,1), 1);
-x = [nIndustrial, nComputer(:,1:5), nTelecomm];
+
+% granger causality test
+x = [nIndustrial, nComputer, nTelecomm];
+testx = x(support,:);
+testy = pwcStuff(support,1);
+isGrangerCausal = zeros(1,size(testx,2));
+for ii=1:size(x,2)
+    [F, c_v] = granger_cause(testx(:,ii),testy,0.05,4);
+    isGrangerCausal(ii) = F > c_v;
+end
+isGrangerCausal
+x = x(:,find(isGrangerCausal == 1));
 
 lOnes = ones(1,size(x,2));
 x = multi_lags(x, lOnes);
+onez = ones(size(x,1),1);
 x = [onez x];
 X = x(support,:);
-Y = pwcStuff(support,1);
+Y = testy;
 [beta] = mvregress(X,Y);
 out = X * beta;
 SSresid = sum((out - Y).^2);
@@ -30,16 +41,6 @@ ylabel('% change VC software company deals');
 xlabel('quarters');
 title('regression for % change VC software deals during dotcom era');
 
-% granger causality test
-x = [nIndustrial, nComputer, nTelecomm];
-x = x(support,:);
-y = Y;
-isGrangerCausal = zeros(1,size(x,2));
-for ii=1:size(x,2)
-    [F, c_v] = granger_cause(x(:,ii),y,0.05,4);
-    isGrangerCausal(ii) = F > c_v;
-end
-isGrangerCausal
 %% pwc industrial % change VC deals over subprime mortgage crisis Q1 2006 - Q1 2013
 % does not work well for software
 % used software for the 1998-2004 analysis because of dotcom boom
@@ -52,13 +53,25 @@ pwcStuff = load_pwc('Data/PWC_Industrial.csv');
 
 %Q1 2006 - Q1 2013
 support = 44:72;
-x = [nIndustrial(:,[1, 2, 3, 4, 6]), nComputer, nBank(:,[3, 4, 6]), nTelecomm(:,[1, 2, 3, 4, 6])];
+
+% granger causality test
+x = [nIndustrial, nComputer, nBank, nTelecomm];
+testx = x(support,:);
+testy = pwcStuff(support,1);
+isGrangerCausal = zeros(1,size(testx,2));
+for ii=1:size(x,2)
+    [F, c_v] = granger_cause(testx(:,ii),testy,0.05,4);
+    isGrangerCausal(ii) = F > c_v;
+end
+isGrangerCausal
+x = x(:,find(isGrangerCausal == 1));
 
 lOnes = ones(1,size(x,2));
 x = multi_lags(x, lOnes);
+onez = ones(size(x,1),1);
 x = [onez x];
 X = x(support,:);
-Y = pwcStuff(support,1);
+Y = testy;
 [beta] = mvregress(X,Y);
 out = X * beta;
 SSresid = sum((out - Y).^2);
@@ -74,13 +87,129 @@ ylabel('% change VC industrial company deals');
 xlabel('quarters');
 title('regression for % change VC industrial deals during subprime mortgage crisis');
 
-% granger causality test
-x = [nIndustrial, nComputer, nBank, nTelecomm];
-x = x(support,:);
-y = Y;
-isGrangerCausal = zeros(1,size(x,2));
-for ii=1:size(x,2)
-    [F, c_v] = granger_cause(x(:,ii),y,0.05,4);
-    isGrangerCausal(ii) = F > c_v;
+
+%% regression for pwc $ contained in deals using # vc deals as independent var
+
+dirName = 'Data/';
+files = dir(fullfile(dirName, 'PWC*'));
+fnames = {files.name}';
+figure;
+for ii=1:length(fnames)
+    data = csvread(strcat(dirName,fnames{ii}),0,1);
+    data = data(:,[1,3]); % get # of deals and $ amount total
+    x = data(:,1);
+    Y = data(:,2);
+    t = datenum(1995,1:3:3*length(x),1);
+    onez = ones(size(x,1), 1);
+    X = [onez,x];
+    [beta] = mvregress(X,Y);
+    subplot(3,3,ii);
+    out = X*beta;
+    plot(t,out,t,Y);
+    datetick('x', 'yyyy QQ');
+    SSresid = sum((out - Y).^2);
+    SStotal = (length(Y)-1)*var(Y);
+    rsq = 1 - SSresid/SStotal;
+    t = strcat(fnames{ii}, ': rsq: %f');
+    t = sprintf(t, rsq);
+    title(strrep(t, '_', '\_'));
+    legend('regression using # deals', '$ total for deals');
+    ylabel('$ total for VC deals');
+    xlabel('quarters');
 end
-isGrangerCausal
+
+%% rolling window
+dirName = 'Data/';
+graphDirName = 'Graphs/';
+nasdaqFiles = dir(fullfile(dirName, 'nasdaq*'));
+nasdaqNames = {nasdaqFiles.name}';
+pwcFiles = dir(fullfile(dirName, 'PWC*'));
+pwcNames = {pwcFiles.name}';
+x = zeros(82,6*length(nasdaqNames));
+xnames = repmat({'open', 'high', 'minimum', 'close index', 'swing', 'momentum'},1,length(nasdaqNames));
+for ii=1:length(nasdaqNames)
+    ind = (ii-1)*6+1;
+    x(:,ind:ind+5) = load_nasdaq(strcat(dirName,nasdaqNames{ii}));
+    for jj=ind:ind+5
+        xnames(jj) = strcat(strrep(strrep(nasdaqNames{ii}, '.csv', ''), 'nasdaq-', ''), {' '}, xnames{jj});
+    end
+end
+
+for year=[3 4 5]
+    for ii=1:length(pwcNames)
+        testx = x;
+        testy = load_pwc(strcat(dirName,pwcNames{ii}));
+        testy = testy(:,1);
+        isGrangerCausal = zeros(1,size(testx,2));
+        for jj=1:size(x,2)
+            [F, c_v] = granger_cause(testx(:,jj),testy,0.05,4);
+            isGrangerCausal(jj) = F > c_v;
+        end
+        causalInds = find(isGrangerCausal == 1);
+        features = x(:,causalInds);
+        featureNames = xnames(causalInds);
+        lOnes = ones(1,size(features,2));
+        features = multi_lags(features, lOnes);
+        if (size(features,2)) < 1
+            continue;
+        end
+        support = 13:(13+4*year); % start at Q1 1997
+        numiter = 82-(13+4*year);
+        onez = ones(length(support),1);
+        weights = zeros(numiter, size(features,2) + 1);
+        rsqs = zeros(numiter,1);
+        if (size(features,2) > 4*year)
+            continue
+        end
+        for jj=1:numiter
+            X = [onez, features(support,:)];
+            Y = testy(support,:);
+            [beta] = mvregress(X,Y);
+            weights(jj,:) = beta';
+            out = X * beta;
+            SSresid = sum((out - Y).^2);
+            SStotal = (length(Y)-1)*var(Y);
+            rsq = 1 - SSresid/SStotal;
+            rsqs(jj) = rsq;
+            support = support + 1;
+        end
+
+        pwcNames{ii}
+        'rsqs values'
+        rsqs'
+        rsqThreshold = 0.5;
+        pctgoodThreshold = 0.8;
+        varianceThreshold = 1.2;
+        pctgood = length(find(rsqs > rsqThreshold))/numiter
+        if pctgood > pctgoodThreshold    % overall 80% of all window regression must have rsq > 0.5
+            seriesName = strrep(strrep(pwcNames{ii}, '_', '\_'), '.csv', '');
+            seriesSaveName = strrep(seriesName, '\_', '-');
+            actualWeights = weights(:,2:end);
+            lowVarianceInd = [];
+            for kk=1:size(actualWeights,2)
+                if (var(actualWeights(:,kk))) < varianceThreshold
+                    lowVarianceInd = [lowVarianceInd kk];
+                end
+            end
+            if size(lowVarianceInd,2) > 0
+                fig = figure;
+                plot(1:numiter,actualWeights(:,lowVarianceInd));
+                legend(featureNames(lowVarianceInd), 'Location', 'eastoutside');
+                title(strcat(seriesName, {' '}, sprintf('%d year window, stable weights with variance of < %f', year, varianceThreshold)));
+                xlabel('window iterations');
+                ylabel('weight values');
+                saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-useful-weights', year), '.png'));
+                saveas(fig, saveName);
+            end
+            fig = figure;
+            plot(1:numiter,actualWeights);
+            legend(featureNames, 'Location', 'eastoutside')
+            title(strcat(seriesName, {' '}, sprintf('%d year window, lag 1 quarter', year)));
+            ylabel('value of weights for each variable regression');
+            xlabel('iterations');
+            saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-weights', year), '.png'));
+            saveas(fig, saveName);
+        end
+    end
+end
+% good = 1,2,6,8 PWC_Biotech.csv, PWC_Energy.csv, PWC_Industrial.csv, PWC_Software.csv

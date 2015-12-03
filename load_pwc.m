@@ -5,4 +5,3 @@ data = data(:,[2,4]);
 normalize = @(y) bsxfun(@rdivide, bsxfun(@minus, y, mean(y,1)), std(y));
 data = normalize(data);
 end
-
