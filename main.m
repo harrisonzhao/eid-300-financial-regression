@@ -131,12 +131,20 @@ end
 %         rsqThreshold = 0.5;
 %         pctgoodThreshold = 0.8;
 %         varianceThreshold = 1.2;
+% below print sections correspond to:
+% 1) rsqs for rolling window analysis
+% 2) lowest variance weights per group plot
+% 3) plot of all low variance weights that were relevant in regression
+% 4) plot of all weights that were relevant in regression
 
 rsqThreshold = 0.5;
 pctgoodThreshold = 0.8;
 varianceThreshold = 0.02;
 dirName = 'Data/';
 graphDirName = 'Graphs/';
+graphAllWeightsDirName = [graphDirName 'all-weights/'];
+graphLowVarDirName = [graphDirName 'low-var-plots/'];
+graphRsqDirName = [graphDirName 'rsqs/'];
 nasdaqFiles = dir(fullfile(dirName, 'nasdaq*'));
 nasdaqNames = {nasdaqFiles.name}';
 pwcFiles = dir(fullfile(dirName, 'PWC*'));
@@ -190,40 +198,70 @@ for year=[3 4 5]
             support = support + 1;
         end
 
-        pwcNames{ii}
-        'rsqs values'
-        rsqs'
         pctgood = length(find(rsqs > rsqThreshold))/numiter
         if pctgood > pctgoodThreshold    % overall 80% of all window regression must have rsq > 0.5
+%             pwcNames{ii}
+%             'rsqs values'
+%             rsqs'
+%             year
+            
             seriesName = strrep(strrep(pwcNames{ii}, '_', '\_'), '.csv', '');
             seriesSaveName = strrep(seriesName, '\_', '-');
+            
+            %%%%%% PLOT R-SQUARED VALUES %%%%%%
+            fig = figure;
+            plot(1:numiter,rsqs,1:numiter,rsqThreshold*ones(length(1:numiter),1));
+            title(strcat(seriesName, {' '}, sprintf('%d year rolling window, rsq threshold %f%%, %f%% windows above threshold', year, 100*rsqThreshold, 100*pctgood)));
+            legend('R-squared values', sprintf('R-squared threshold = %f', rsqThreshold));
+            xlabel('window iterations');
+            ylabel('rsq values for iteration');
+            saveName = fullfile(graphRsqDirName, strcat(seriesSaveName, sprintf('-%d-year-window-rsq-values-per-iteration', year), '.png'));
+            saveas(fig, saveName);
+            
             actualWeights = weights(:,2:end);
             mins = repmat(min(actualWeights),size(actualWeights,1),1);
             actualWeights = actualWeights-mins;
             actualWeights = actualWeights./(repmat(max(actualWeights),size(actualWeights,1),1)-mins);
             lowVarianceInd = [];
+            lowVariances = [];
             for kk=1:size(actualWeights,2)
                 if (var(actualWeights(:,kk))) < varianceThreshold
                     lowVarianceInd = [lowVarianceInd kk];
+                    lowVariances = [lowVariances var(actualWeights(:,kk))];
                 end
             end
             if size(lowVarianceInd,2) > 0
+                %%%%%% PLOT LOWEST VARIANCE WEIGHTS %%%%%%
+                fig = figure;
+                ind = find(lowVariances == min(lowVariances));
+                plot(1:numiter,actualWeights(:,ind),1:numiter,mean(actualWeights(:,ind))*ones(length(1:numiter),1));
+                legend(featureNames(ind), 'mean');
+                title(strcat(seriesName, {' '}, sprintf('%d year window, weights with variance of %f < %f threshold', year, min(lowVariances), varianceThreshold)));
+                xlabel('window iterations');
+                ylabel('normalized weight values');
+                saveName = fullfile(graphLowVarDirName, strcat(seriesSaveName, sprintf('-%d-year-window-lowest-var-weights-normalized', year), '.png'));
+                saveas(fig, saveName);
+
+                %%%%%% PLOT ALL LOW VARIANCE WEIGHTS %%%%%%
                 fig = figure;
                 plot(1:numiter,actualWeights(:,lowVarianceInd));
                 legend(featureNames(lowVarianceInd), 'Location', 'eastoutside');
                 title(strcat(seriesName, {' '}, sprintf('%d year window, stable weights with variance of < %f', year, varianceThreshold)));
+                legend(featureNames(lowVarianceInd), 'Location', 'eastoutside');
+                title(strcat(seriesName, {' '}, sprintf('%d year window, stable weights with variance of < %f', year, varianceThreshold)));
                 xlabel('window iterations');
                 ylabel('normalized weight values');
-                saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-useful-weights-normalized', year), '.png'));
+                saveName = fullfile(graphAllWeightsDirName, strcat(seriesSaveName, sprintf('-%d-year-window-useful-weights-normalized', year), '.png'));
                 saveas(fig, saveName);
             end
+            %%%%%% PLOT ALL WEIGHTS %%%%%%
             fig = figure;
             plot(1:numiter,actualWeights);
             legend(featureNames, 'Location', 'eastoutside')
             title(strcat(seriesName, {' '}, sprintf('%d year window, lag 1 quarter', year)));
             ylabel('value of normalized weights for each variable regression');
             xlabel('iterations');
-            saveName = fullfile(graphDirName, strcat(seriesSaveName, sprintf('-%d-year-window-weights-normalized', year), '.png'));
+            saveName = fullfile(graphAllWeightsDirName, strcat(seriesSaveName, sprintf('-%d-year-window-weights-normalized', year), '.png'));
             saveas(fig, saveName);
         end
     end
