@@ -183,7 +183,9 @@ for year=[3 4 5]
         weights = zeros(numiter, size(features,2) + 1);
         rsqs = zeros(numiter,1);
         if (size(features,2) > 4*year)
-            continue
+            pwcNames{ii}
+            year
+            continue;
         end
         for jj=1:numiter
             X = [onez, features(support,:)];
@@ -198,7 +200,7 @@ for year=[3 4 5]
             support = support + 1;
         end
 
-        pctgood = length(find(rsqs > rsqThreshold))/numiter
+        pctgood = length(find(rsqs > rsqThreshold))/numiter;
         if pctgood > pctgoodThreshold    % overall 80% of all window regression must have rsq > 0.5
 %             pwcNames{ii}
 %             'rsqs values'
